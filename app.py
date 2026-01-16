@@ -16,8 +16,6 @@ else:
     app.secret_key = 'dev-secret-key-change-in-production'
     print("💻 Запуск в режиме разработки")
 
-# Инициализация маршрутов аутентификации
-auth.init_auth_routes(app)
 
 # Инициализация базы данных при запуске
 def initialize_database():
@@ -956,4 +954,5 @@ def inject_moderation_link():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+
     app.run(host='0.0.0.0', port=port, debug=False)
