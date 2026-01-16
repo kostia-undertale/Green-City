@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>👥 Управление пользователями</h2>
+    <div>
+        <a href="{{ url_for('admin_cities') }}" class="btn btn-outline-primary">🏙️ Города</a>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">← На главную</a>
+    </div>
+</div>
+
+<!-- Поиск и фильтры -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-search me-2"></i>Поиск и фильтрация
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Поиск по имени или email:</label>
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Введите имя или email...">
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Фильтр по роли:</label>
+                    <select class="form-select" id="roleFilter">
+                        <option value="">Все роли</option>
+                        <option value="user">Пользователь</option>
+                        <option value="admin">Администратор</option>
+                        <option value="creator">Создатель</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Фильтр по статусу:</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">Все статусы</option>
+                        <option value="active">Активные</option>
+                        <option value="inactive">Неактивные</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted" id="searchResultsText">
+                    Найдено пользователей: <strong>{{ users|length }}</strong>
+                </span>
+            </div>
+            <div>
+                <button class="btn btn-outline-secondary btn-sm" id="resetFilters">
+                    <i class="fas fa-refresh me-1"></i>Сбросить фильтры
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Список пользователей -->
+<div class="card">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>Список пользователей системы
+        </h5>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+            <label class="form-check-label text-white" for="autoRefresh">Автообновление</label>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>
+                            Имя пользователя
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="username"></i>
+                        </th>
+                        <th>Email</th>
+                        <th>
+                            Город
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="city"></i>
+                        </th>
+                        <th>
+                            Роль
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="role"></i>
+                        </th>
+                        <th>
+                            Статус
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="status"></i>
+                        </th>
+                        <th>
+                            Дата регистрации
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="date"></i>
+                        </th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    {% for user in users %}
+                    <tr class="user-row"
+                        data-username="{{ user.username.lower() }}"
+                        data-email="{{ user.email.lower() }}"
+                        data-city="{{ user.city }}"
+                        data-role="{{ user.role }}"
+                        data-status="{{ 'active' if user.is_active else 'inactive' }}">
+                        <td>{{ user.id }}</td>
+                        <td>
+                            <a href="{{ url_for('view_profile', user_id=user.id) }}" class="text-decoration-none">
+                                <strong class="user-username">{{ user.username }}</strong>
+                                {% if user.id == session.user_id %}<strong>(Вы)</strong>{% endif %}
+                            </a>
+                        </td>
+                        <td class="user-email">{{ user.email }}</td>
+                        <td class="user-city">{{ user.city }}</td>
+                        <td class="user-role">
+                            <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'warning' if user.role == 'creator' else 'secondary' }}">
+                                {{ user.role }}
+                            </span>
+                        </td>
+                        <td class="user-status">
+                            <span class="badge bg-{{ 'success' if user.is_active else 'danger' }}">
+                                {{ 'Активен' if user.is_active else 'Неактивен' }}
+                            </span>
+                        </td>
+                        <td class="user-date">{{ user.created_date[:10] }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if user.id != session.user_id %}
+                                    {% if session.role == 'creator' %}
+                                        <!-- Только создатель может менять роли -->
+                                        {% if user.role != 'creator' %}
+                                        <a href="{{ url_for('toggle_user_role', user_id=user.id) }}"
+                                           class="btn btn-{{ 'warning' if user.role == 'admin' else 'info' }}"
+                                           onclick="return confirm('Вы уверены, что хотите изменить роль пользователя {{ user.username }}?')">
+                                            {{ 'Снять админа' if user.role == 'admin' else 'Сделать админом' }}
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+
+                                    <!-- Активация/деактивация -->
+                                    {% if session.role == 'creator' or (session.role == 'admin' and user.role == 'user') %}
+                                    <a href="{{ url_for('toggle_user_status', user_id=user.id) }}"
+                                       class="btn btn-{{ 'danger' if user.is_active else 'success' }}"
+                                       onclick="return confirm('Вы уверены, что хотите {{ 'деактивировать' if user.is_active else 'активировать' }} пользователя {{ user.username }}?')">
+                                        {{ 'Деактивировать' if user.is_active else 'Активировать' }}
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted small">Ограниченные права</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted">Ваш аккаунт</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div id="noResults" class="text-center py-4 d-none">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h5>Пользователи не найдены</h5>
+            <p class="text-muted">Попробуйте изменить параметры поиска</p>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <h5>Нет зарегистрированных пользователей</h5>
+            <p class="text-muted">Пользователи появятся здесь после регистрации</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="card mt-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">📊 Статистика</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h4 id="totalUsers">{{ users|length }}</h4>
+                        <p class="mb-0">Всего пользователей</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h4 id="activeUsers">{{ users|selectattr('is_active', 'equalto', 1)|list|length }}</h4>
+                        <p class="mb-0">Активных</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h4 id="adminUsers">{{ users|selectattr('role', 'equalto', 'admin')|list|length }}</h4>
+                        <p class="mb-0">Администраторов</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h4 id="regularUsers">{{ users|selectattr('role', 'equalto', 'user')|list|length }}</h4>
+                        <p class="mb-0">Обычных пользователей</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Поиск и фильтрация пользователей
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const roleFilter = document.getElementById('roleFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const clearSearch = document.getElementById('clearSearch');
+    const resetFilters = document.getElementById('resetFilters');
+    const usersTableBody = document.getElementById('usersTableBody');
+    const noResults = document.getElementById('noResults');
+    const searchResultsText = document.getElementById('searchResultsText');
+    const autoRefresh = document.getElementById('autoRefresh');
+
+    let currentSort = { column: 'username', direction: 'asc' };
+
+    // Функция фильтрации пользователей
+    function filterUsers() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const roleValue = roleFilter.value;
+        const statusValue = statusFilter.value;
+
+        let visibleCount = 0;
+        let activeCount = 0;
+        let adminCount = 0;
+        let regularCount = 0;
+
+        document.querySelectorAll('.user-row').forEach(row => {
+            const username = row.getAttribute('data-username');
+            const email = row.getAttribute('data-email');
+            const userRole = row.getAttribute('data-role');
+            const userStatus = row.getAttribute('data-status');
+
+            const matchesSearch = searchTerm === '' ||
+                                username.includes(searchTerm) ||
+                                email.includes(searchTerm);
+            const matchesRole = roleValue === '' || userRole === roleValue;
+            const matchesStatus = statusValue === '' || userStatus === statusValue;
+
+            if (matchesSearch && matchesRole && matchesStatus) {
+                row.style.display = '';
+                visibleCount++;
+
+                // Собираем статистику
+                if (userStatus === 'active') activeCount++;
+                if (userRole === 'admin') adminCount++;
+                if (userRole === 'user') regularCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Обновляем тексты результатов
+        searchResultsText.innerHTML = `Найдено пользователей: <strong>${visibleCount}</strong>`;
+
+        // Обновляем статистику
+        document.getElementById('totalUsers').textContent = visibleCount;
+        document.getElementById('activeUsers').textContent = activeCount;
+        document.getElementById('adminUsers').textContent = adminCount;
+        document.getElementById('regularUsers').textContent = regularCount;
+
+        // Показываем/скрываем сообщение "нет результатов"
+        if (visibleCount === 0) {
+            noResults.classList.remove('d-none');
+            usersTableBody.style.display = 'none';
+        } else {
+            noResults.classList.add('d-none');
+            usersTableBody.style.display = '';
+        }
+    }
+
+    // Сортировка таблицы
+    function sortTable(column, direction) {
+        const rows = Array.from(document.querySelectorAll('.user-row:not([style*="display: none"])'));
+
+        rows.sort((a, b) => {
+            let aValue, bValue;
+
+            switch(column) {
+                case 'username':
+                    aValue = a.querySelector('.user-username').textContent.toLowerCase();
+                    bValue = b.querySelector('.user-username').textContent.toLowerCase();
+                    break;
+                case 'city':
+                    aValue = a.querySelector('.user-city').textContent.toLowerCase();
+                    bValue = b.querySelector('.user-city').textContent.toLowerCase();
+                    break;
+                case 'role':
+                    aValue = a.querySelector('.user-role').textContent.toLowerCase();
+                    bValue = b.querySelector('.user-role').textContent.toLowerCase();
+                    break;
+                case 'status':
+                    aValue = a.querySelector('.user-status').textContent.toLowerCase();
+                    bValue = b.querySelector('.user-status').textContent.toLowerCase();
+                    break;
+                case 'date':
+                    aValue = new Date(a.querySelector('.user-date').textContent);
+                    bValue = new Date(b.querySelector('.user-date').textContent);
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (direction === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+
+        // Перестраиваем таблицу
+        const tbody = document.getElementById('usersTableBody');
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Обработчики событий
+    searchInput.addEventListener('input', function() {
+        if (autoRefresh.checked) {
+            filterUsers();
+        }
+    });
+
+    roleFilter.addEventListener('change', function() {
+        if (autoRefresh.checked) {
+            filterUsers();
+        }
+    });
+
+    statusFilter.addEventListener('change', function() {
+        if (autoRefresh.checked) {
+            filterUsers();
+        }
+    });
+
+    clearSearch.addEventListener('click', function() {
+        searchInput.value = '';
+        if (autoRefresh.checked) {
+            filterUsers();
+        }
+    });
+
+    resetFilters.addEventListener('click', function() {
+        searchInput.value = '';
+        roleFilter.value = '';
+        statusFilter.value = '';
+        filterUsers();
+    });
+
+    // Обработчики сортировки
+    document.querySelectorAll('[data-sort]').forEach(icon => {
+        icon.addEventListener('click', function() {
+            const column = this.getAttribute('data-sort');
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            sortTable(currentSort.column, currentSort.direction);
+
+            // Обновляем иконки сортировки
+            document.querySelectorAll('[data-sort]').forEach(i => {
+                i.className = 'fas fa-sort ms-1 cursor-pointer';
+            });
+            this.className = `fas fa-sort-${currentSort.direction === 'asc' ? 'up' : 'down'} ms-1 cursor-pointer`;
+        });
+    });
+
+    // Инициализация
+    filterUsers();
+});
+</script>
+
+<style>
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.user-row:hover {
+    background-color: #f8f9fa !important;
+}
+
+.input-group .btn {
+    border-left: none;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    position: relative;
+}
+
+.table th i {
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.table th i:hover {
+    opacity: 1;
+}
+
+#noResults {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}
