@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if user_city %}
+<div class="alert alert-info">
+    <strong>🏙️ Текущий город:</strong> {{ user_city }}
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.total_zones }}</h5>
+                <p class="card-text">Зеленых зон</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.pending_tasks }}</h5>
+                <p class="card-text">Ожидающих задач</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.critical_tasks }}</h5>
+                <p class="card-text">Срочных задач</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ "%.1f"|format(stats.avg_health) }}%</h5>
+                <p class="card-text">Среднее состояние</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if stats.total_organizations > 0 %}
+<div class="row mb-4">
+    <div class="col-md-4 offset-md-4">
+        <div class="card text-white bg-info">
+            <div class="card-body text-center">
+                <h5 class="card-title">{{ stats.total_organizations }}</h5>
+                <p class="card-text">Организаций в городе</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Последние задачи по обслуживанию в {{ user_city }}</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_tasks %}
+                <div class="list-group">
+                    {% for task in recent_tasks %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ task.zone_name }} - {{ task.description }}</h6>
+                            <span class="badge bg-{{ 'danger' if task.priority == 'high' else 'warning' if task.priority == 'medium' else 'secondary' }}">
+                                {% if task.task_type == 'watering' %}Полив
+                                {% elif task.task_type == 'pruning' %}Обрезка
+                                {% elif task.task_type == 'cleaning' %}Уборка
+                                {% elif task.task_type == 'repair' %}Ремонт
+                                {% else %}{{ task.task_type }}{% endif %}
+                            </span>
+                        </div>
+                        <small class="text-muted">Статус:
+                            <span class="badge bg-{{ 'success' if task.status == 'completed' else 'warning' if task.status == 'in_progress' else 'secondary' }}">
+                                {% if task.status == 'pending' %}Ожидает
+                                {% elif task.status == 'in_progress' %}В работе
+                                {% elif task.status == 'completed' %}Завершена
+                                {% else %}{{ task.status }}{% endif %}
+                            </span>
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">Нет активных задач</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Быстрые действия</h5>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('map_view') }}" class="btn btn-outline-success w-100 mb-2">🗺️ Посмотреть карту</a>
+                <a href="{{ url_for('add_zone') }}" class="btn btn-outline-primary w-100 mb-2">➕ Добавить зону</a>
+                <a href="{{ url_for('reports') }}" class="btn btn-outline-info w-100">📊 Сформировать отчет</a>
+                {% if session.role in ['admin', 'creator'] %}
+                <a href="{{ url_for('admin_organizations') }}" class="btn btn-outline-secondary w-100 mt-2">🏢 Организации</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- Контент для неавторизованных пользователей -->
+<div class="jumbotron bg-light p-5 rounded">
+    <h1 class="display-4">🌿 Добро пожаловать в Зеленые города!</h1>
+    <p class="lead">Цифровая платформа для управления зелеными территориями городов России</p>
+    <hr class="my-4">
+    <p>Присоединяйтесь к сообществу активных граждан и помогайте улучшать экологию вашего города!</p>
+
+    <div class="row mt-5">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Для жителей</h5>
+                    <p class="card-text">Сообщайте о состоянии зеленых зон, участвуйте в обсуждениях, помогайте улучшать ваш город</p>
+                    <a href="{{ url_for('register') }}" class="btn btn-success">Зарегистрироваться</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Уже есть аккаунт?</h5>
+                    <p class="card-text">Войдите в систему чтобы начать работу с зелеными зонами вашего города</p>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary">Войти</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <h5>Поддерживаемые города:</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <ul class="list-unstyled">
+                    <li>🏙️ Барнаул</li>
+                    <li>🏙️ Бийск</li>
+                    <li>🏙️ Рубцовск</li>
+                    <li>🏙️ Котельниково</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <ul class="list-unstyled">
+                    <li>🏙️ Кемерово</li>
+                    <li>🏙️ Прокопьевск</li>
+                    <li>🏙️ Абакан</li>
+                    <li>🏙️ Черногорск</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <ul class="list-unstyled">
+                    <li>🏙️ Ковдор</li>
+                    <li>🏙️ Кингисепп</li>
+                    <li>🏙️ Березники</li>
+                    <li>🏙️ И другие...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

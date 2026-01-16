@@ -1,0 +1,734 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-tree me-2"></i>{{ zone.name }}
+    </h2>
+    <div>
+        <a href="{{ url_for('map_view') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Назад к карте
+        </a>
+        {% if session.role in ['admin', 'creator'] %}
+        <button type="button" class="btn btn-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteZoneModal">
+            <i class="fas fa-trash me-1"></i>Удалить зону
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Основная информация о зоне -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Информация о зеленой зоне
+                </h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th><i class="fas fa-tag me-2"></i>Тип зоны:</th>
+                        <td>{{ zone.zone_type }}</td>
+                    </tr>
+                    <tr>
+                        <th><i class="fas fa-ruler-combined me-2"></i>Площадь:</th>
+                        <td>{{ zone.area }} га</td>
+                    </tr>
+                    <tr>
+                        <th><i class="fas fa-map-marker-alt me-2"></i>Местоположение:</th>
+                        <td>{{ zone.location }}</td>
+                    </tr>
+                    <tr>
+                        <th><i class="fas fa-city me-2"></i>Город:</th>
+                        <td>{{ zone.city_name }}</td>
+                    </tr>
+                    <tr>
+                        <th><i class="fas fa-calendar me-2"></i>Дата создания:</th>
+                        <td>{{ zone.created_date[:10] }}</td>
+                    </tr>
+                    {% if zone.coordinates %}
+                    <tr>
+                        <th><i class="fas fa-map-pin me-2"></i>Координаты:</th>
+                        <td><small class="text-muted">{{ zone.coordinates }}</small></td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Привязанные организации -->
+        <div class="card mt-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-building me-2"></i>Привязанные организации
+                </h5>
+                {% if session.role in ['admin', 'creator'] %}
+                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addOrganizationModal">
+                    <i class="fas fa-plus me-1"></i>Добавить
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if zone_organizations %}
+                    {% for org in zone_organizations %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-1">
+                                        {% if org.org_type == 'non-profit' %}
+                                            <i class="fas fa-hands-helping me-1 text-success"></i>
+                                        {% elif org.org_type == 'commercial' %}
+                                            <i class="fas fa-building me-1 text-primary"></i>
+                                        {% elif org.org_type == 'educational' %}
+                                            <i class="fas fa-graduation-cap me-1 text-info"></i>
+                                        {% elif org.org_type == 'volunteer' %}
+                                            <i class="fas fa-users me-1 text-warning"></i>
+                                        {% elif org.org_type == 'governmental' %}
+                                            <i class="fas fa-landmark me-1 text-danger"></i>
+                                        {% else %}
+                                            <i class="fas fa-briefcase me-1 text-secondary"></i>
+                                        {% endif %}
+                                        {{ org.organization_name }}
+                                    </h6>
+                                    <p class="card-text small mb-1">
+                                        <strong>Тип ответственности:</strong>
+                                        <span class="badge bg-{{ 'success' if org.responsibility_type == 'maintenance' else 'primary' if org.responsibility_type == 'sponsorship' else 'warning' if org.responsibility_type == 'partnership' else 'info' }}">
+                                            {% if org.responsibility_type == 'maintenance' %}Обслуживание
+                                            {% elif org.responsibility_type == 'sponsorship' %}Спонсорство
+                                            {% elif org.responsibility_type == 'partnership' %}Партнерство
+                                            {% elif org.responsibility_type == 'volunteer' %}Волонтерство
+                                            {% else %}{{ org.responsibility_type }}{% endif %}
+                                        </span>
+                                    </p>
+                                    {% if org.notes %}
+                                    <p class="card-text small text-muted mb-1">
+                                        <i class="fas fa-sticky-note me-1"></i>{{ org.notes }}
+                                    </p>
+                                    {% endif %}
+                                    {% if org.contact_person %}
+                                    <p class="card-text small mb-1">
+                                        <i class="fas fa-user me-1"></i>{{ org.contact_person }}
+                                    </p>
+                                    {% endif %}
+                                    {% if org.phone or org.email %}
+                                    <p class="card-text small mb-1">
+                                        {% if org.phone %}
+                                        <i class="fas fa-phone me-1"></i>{{ org.phone }}
+                                        {% endif %}
+                                        {% if org.email %}
+                                        <i class="fas fa-envelope ms-2 me-1"></i>{{ org.email }}
+                                        {% endif %}
+                                    </p>
+                                    {% endif %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>Привязано: {{ org.start_date[:10] }}
+                                    </small>
+                                </div>
+                                {% if session.role in ['admin', 'creator'] %}
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <form method="POST" action="{{ url_for('remove_organization_from_zone', zone_id=zone.id, organization_id=org.organization_id) }}"
+                                                  onsubmit="return confirm('Отвязать организацию от зоны?')">
+                                                <button type="submit" class="dropdown-item text-danger">
+                                                    <i class="fas fa-unlink me-1"></i>Отвязать
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-3">
+                        <i class="fas fa-building fa-2x text-muted mb-2"></i><br>
+                        Нет привязанных организаций
+                    </p>
+                    {% if session.role in ['admin', 'creator'] %}
+                    <div class="text-center">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addOrganizationModal">
+                            <i class="fas fa-plus me-1"></i>Привязать организацию
+                        </button>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Формы и задачи -->
+    <div class="col-md-8">
+        <!-- Форма для добавления задачи -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>Добавить новую задачу
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_task') }}">
+                    <input type="hidden" name="zone_id" value="{{ zone.id }}">
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Тип задачи:</label>
+                                <select name="task_type" class="form-select" required>
+                                    <option value="">Выберите тип задачи...</option>
+                                    <option value="watering">💧 Полив</option>
+                                    <option value="pruning">✂️ Обрезка</option>
+                                    <option value="cleaning">🧹 Уборка</option>
+                                    <option value="repair">🔧 Ремонт</option>
+                                    <option value="planting">🌱 Посадка</option>
+                                    <option value="fertilizing">🌿 Удобрение</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Приоритет:</label>
+                                <select name="priority" class="form-select" required>
+                                    <option value="low">🟢 Низкий</option>
+                                    <option value="medium" selected>🟡 Средний</option>
+                                    <option value="high">🔴 Высокий</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Описание задачи:</label>
+                        <textarea name="description" class="form-control" rows="2"
+                                  placeholder="Опишите задачу подробно..." required></textarea>
+                    </div>
+
+                    {% if session.role in ['admin', 'creator'] and organizations_for_assignment %}
+                    <div class="mb-3">
+                        <label class="form-label">Назначить организации (опционально):</label>
+                        <select name="assigned_organization" class="form-select">
+                            <option value="">-- Без организации --</option>
+                            {% for org in organizations_for_assignment %}
+                            <option value="{{ org.id }}">{{ org.name }} ({{ org.org_type }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Если организация отвечает за выполнение задачи</small>
+                    </div>
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-plus me-1"></i>Добавить задачу
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Задачи по обслуживанию -->
+        <div class="card mt-4">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-2"></i>Задачи по обслуживанию
+                </h5>
+                <span class="badge bg-primary">{{ tasks|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if tasks %}
+                    {% for task in tasks %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-1">
+                                        {% if task.task_type == 'watering' %}
+                                            <i class="fas fa-tint me-1 text-primary"></i>
+                                        {% elif task.task_type == 'pruning' %}
+                                            <i class="fas fa-cut me-1 text-success"></i>
+                                        {% elif task.task_type == 'cleaning' %}
+                                            <i class="fas fa-broom me-1 text-info"></i>
+                                        {% elif task.task_type == 'repair' %}
+                                            <i class="fas fa-tools me-1 text-danger"></i>
+                                        {% elif task.task_type == 'planting' %}
+                                            <i class="fas fa-seedling me-1 text-success"></i>
+                                        {% elif task.task_type == 'fertilizing' %}
+                                            <i class="fas fa-leaf me-1 text-warning"></i>
+                                        {% else %}
+                                            <i class="fas fa-tasks me-1 text-secondary"></i>
+                                        {% endif %}
+                                        {{ task.description }}
+                                    </h6>
+                                    <p class="card-text mb-1 small text-muted">
+                                        Создал: {{ task.creator_name }} |
+                                        {{ task.created_date[:10] }}
+                                    </p>
+                                    <div class="mt-2">
+                                        <span class="badge bg-{{ 'danger' if task.priority == 'high' else 'warning' if task.priority == 'medium' else 'secondary' }} me-2">
+                                            {% if task.priority == 'high' %}🔴 Высокий
+                                            {% elif task.priority == 'medium' %}🟡 Средний
+                                            {% else %}🟢 Низкий{% endif %}
+                                        </span>
+                                        <span class="badge bg-{{ 'success' if task.status == 'completed' else 'info' if task.status == 'in_progress' else 'warning' if task.status == 'verification_requested' else 'secondary' }}">
+                                            {% if task.status == 'pending' %}⏳ Ожидает
+                                            {% elif task.status == 'in_progress' %}🔄 В работе
+                                            {% elif task.status == 'verification_requested' %}📝 На проверке
+                                            {% elif task.status == 'completed' %}✅ Выполнена
+                                            {% else %}{{ task.status }}{% endif %}
+                                        </span>
+                                        {% if task.assigned_organization_name %}
+                                        <span class="badge bg-info ms-2">
+                                            <i class="fas fa-building me-1"></i>{{ task.assigned_organization_name }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% if task.status == 'verification_requested' %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-user-check me-1"></i>
+                                            Запрос на проверку от: {{ task.verification_requested_by_name }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                    {% if task.status == 'completed' and task.completed_by_name %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            Выполнена: {{ task.completed_by_name }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="btn-group btn-group-sm mt-2">
+                                {% if task.status == 'pending' or task.status == 'in_progress' %}
+                                    {% if session.role in ['admin', 'creator'] %}
+                                    <a href="{{ url_for('update_task_status', task_id=task.id, status='in_progress') }}"
+                                       class="btn btn-outline-info btn-sm">
+                                        <i class="fas fa-play me-1"></i>В работу
+                                    </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('update_task_status', task_id=task.id, status='verification_requested') }}"
+                                       class="btn btn-outline-success btn-sm"
+                                       onclick="return confirm('Отправить запрос на подтверждение выполнения задачи?')">
+                                        <i class="fas fa-check me-1"></i>Выполнено
+                                    </a>
+                                {% endif %}
+
+                                {% if task.status == 'in_progress' and session.role in ['admin', 'creator'] %}
+                                <a href="{{ url_for('update_task_status', task_id=task.id, status='pending') }}"
+                                   class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-pause me-1"></i>В ожидание
+                                </a>
+                                {% endif %}
+
+                                {% if task.status == 'verification_requested' and session.role in ['admin', 'creator'] %}
+                                <a href="{{ url_for('update_task_status', task_id=task.id, status='completed') }}"
+                                   class="btn btn-outline-success btn-sm"
+                                   onclick="return confirm('Подтвердить выполнение задачи?')">
+                                    <i class="fas fa-check-double me-1"></i>Подтвердить
+                                </a>
+                                <a href="{{ url_for('update_task_status', task_id=task.id, status='in_progress') }}"
+                                   class="btn btn-outline-warning btn-sm"
+                                   onclick="return confirm('Вернуть задачу в работу?')">
+                                    <i class="fas fa-undo me-1"></i>Вернуть
+                                </a>
+                                {% endif %}
+
+                                {% if session.role in ['admin', 'creator'] %}
+                                <form method="POST" action="{{ url_for('delete_task', task_id=task.id) }}"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Удалить эту задачу?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i>Удалить
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-3">
+                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i><br>
+                        Нет активных задач
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Форма для добавления отчета и история отчетов -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clipboard-check me-2"></i>Добавить отчет о состоянии
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('add_report') }}">
+                            <input type="hidden" name="zone_id" value="{{ zone.id }}">
+
+                            <div class="mb-3">
+                                <label class="form-label">Оценка состояния (0-100%):</label>
+                                <input type="number" name="health_score" class="form-control" min="0" max="100" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Требуются мероприятия:</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="needs_watering" id="watering">
+                                    <label class="form-check-label" for="watering">
+                                        <i class="fas fa-tint me-1"></i>Полив
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="needs_pruning" id="pruning">
+                                    <label class="form-check-label" for="pruning">
+                                        <i class="fas fa-cut me-1"></i>Обрезка
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="needs_cleaning" id="cleaning">
+                                    <label class="form-check-label" for="cleaning">
+                                        <i class="fas fa-broom me-1"></i>Уборка
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="needs_repair" id="repair">
+                                    <label class="form-check-label" for="repair">
+                                        <i class="fas fa-tools me-1"></i>Ремонт
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Заметки:</label>
+                                <textarea name="notes" class="form-control" rows="3" placeholder="Опишите текущее состояние зоны..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-paper-plane me-1"></i>Отправить отчет
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>История отчетов
+                        </h5>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        {% if reports %}
+                            {% for report in reports %}
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="card-title">
+                                                Оценка:
+                                                <span class="badge bg-{{ 'success' if report.health_score >= 80 else 'warning' if report.health_score >= 60 else 'danger' }}">
+                                                    {{ report.health_score }}%
+                                                </span>
+                                            </h6>
+                                            {% if report.notes %}
+                                            <p class="card-text">{{ report.notes }}</p>
+                                            {% endif %}
+                                            <small class="text-muted">
+                                                <i class="fas fa-user me-1"></i>{{ report.reporter_name }}
+                                            </small>
+                                        </div>
+                                        <small class="text-muted text-end">
+                                            <i class="fas fa-calendar me-1"></i>{{ report.report_date[:10] }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted text-center py-3">
+                                <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i><br>
+                                Нет отчетов
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Быстрые действия -->
+<div class="card mt-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-bolt me-2"></i>Быстрые действия
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 text-center">
+                <a href="{{ url_for('map_view') }}" class="btn btn-outline-primary w-100 mb-2">
+                    <i class="fas fa-map me-1"></i>На карту
+                </a>
+            </div>
+            <div class="col-md-3 text-center">
+                <a href="{{ url_for('add_zone') }}" class="btn btn-outline-success w-100 mb-2">
+                    <i class="fas fa-plus me-1"></i>Добавить зону
+                </a>
+            </div>
+            <div class="col-md-3 text-center">
+                <a href="{{ url_for('reports') }}" class="btn btn-outline-info w-100 mb-2">
+                    <i class="fas fa-chart-bar me-1"></i>Все отчеты
+                </a>
+            </div>
+            {% if session.role in ['admin', 'creator'] and has_tasks_awaiting_verification() %}
+            <div class="col-md-3 text-center">
+                <a href="{{ url_for('task_verification') }}" class="btn btn-outline-warning w-100 mb-2">
+                    <i class="fas fa-check-double me-1"></i>Проверка задач
+                    <span class="badge bg-danger ms-1">{{ get_tasks_awaiting_verification_count() }}</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно привязки организации -->
+{% if session.role in ['admin', 'creator'] %}
+<div class="modal fade" id="addOrganizationModal" tabindex="-1" aria-labelledby="addOrganizationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addOrganizationModalLabel">
+                    <i class="fas fa-link me-2"></i>Привязать организацию к зоне
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('add_organization_to_zone', zone_id=zone.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Выберите организацию:</label>
+                        <select name="organization_id" class="form-select" required>
+                            <option value="">-- Выберите организацию --</option>
+                            {% for org in available_organizations %}
+                            <option value="{{ org.id }}">{{ org.name }} ({{ org.city_name }}, {{ org.org_type }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            Если нужной организации нет в списке, <a href="#" data-bs-toggle="modal" data-bs-target="#createOrganizationModal">создайте новую</a>
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Тип ответственности:</label>
+                        <select name="responsibility_type" class="form-select" required>
+                            <option value="maintenance">Обслуживание (техническое содержание)</option>
+                            <option value="sponsorship">Спонсорство (финансовая поддержка)</option>
+                            <option value="partnership">Партнерство (совместная работа)</option>
+                            <option value="volunteer">Волонтерство (добровольная помощь)</option>
+                            <option value="monitoring">Мониторинг (наблюдение и отчетность)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Примечания (опционально):</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Дополнительная информация о привязке..."></textarea>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Информация:</strong> После привязки организация появится в списке ответственных за зону.
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-link me-1"></i>Привязать организацию
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Отмена
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно создания новой организации -->
+<div class="modal fade" id="createOrganizationModal" tabindex="-1" aria-labelledby="createOrganizationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="createOrganizationModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Создать новую организацию
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('create_organization') }}">
+                    <input type="hidden" name="zone_id" value="{{ zone.id }}">
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Название организации:</label>
+                                <input type="text" name="name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Тип организации:</label>
+                                <select name="org_type" class="form-select" required>
+                                    <option value="">-- Выберите тип --</option>
+                                    <option value="non-profit">Некоммерческая организация</option>
+                                    <option value="commercial">Коммерческая организация</option>
+                                    <option value="governmental">Государственная организация</option>
+                                    <option value="educational">Образовательное учреждение</option>
+                                    <option value="volunteer">Волонтерское движение</option>
+                                    <option value="other">Другое</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Описание организации:</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Краткое описание деятельности..."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Контактное лицо:</label>
+                                <input type="text" name="contact_person" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Телефон:</label>
+                                <input type="text" name="phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email:</label>
+                                <input type="email" name="email" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Веб-сайт:</label>
+                                <input type="url" name="website" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Город организации:</label>
+                        <select name="city_id" class="form-select" required>
+                            <option value="">-- Выберите город --</option>
+                            {% for city in cities %}
+                            <option value="{{ city.id }}" {% if city.id == zone.city_id %}selected{% endif %}>{{ city.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        После создания организации вы сможете привязать её к текущей зеленой зоне.
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-1"></i>Создать организацию
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Отмена
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Модальное окно подтверждения удаления зоны -->
+{% if session.role in ['admin', 'creator'] %}
+<div class="modal fade" id="deleteZoneModal" tabindex="-1" aria-labelledby="deleteZoneModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteZoneModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Подтверждение удаления
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Внимание!</strong> Это действие нельзя отменить.
+                </div>
+                <p>Вы уверены, что хотите удалить зеленую зону <strong>"{{ zone.name }}"</strong>?</p>
+                <p class="text-muted small">
+                    Будут удалены все связанные данные:
+                    <ul class="small">
+                        <li>Отчеты о состоянии зоны</li>
+                        <li>Задачи по обслуживанию</li>
+                        <li>Привязки организаций</li>
+                        <li>История изменений</li>
+                    </ul>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Отмена
+                </button>
+                <form method="POST" action="{{ url_for('delete_zone', zone_id=zone.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Удалить зону
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('organization_created') === 'true') {
+        const createOrgModal = document.getElementById('createOrganizationModal');
+        if (createOrgModal) {
+            const modal = bootstrap.Modal.getInstance(createOrgModal);
+            modal.hide();
+
+            const successAlert = document.createElement('div');
+            successAlert.className = 'alert alert-success alert-dismissible fade show mt-3';
+            successAlert.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                Организация успешно создана! Теперь вы можете привязать её к зоне.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container.mt-4').insertBefore(successAlert, document.querySelector('.container.mt-4').firstChild);
+        }
+    }
+});
+</script>
+{% endblock %}

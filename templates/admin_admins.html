@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>👑 Управление администраторами</h2>
+    <div>
+        <a href="{{ url_for('admin_users') }}" class="btn btn-outline-primary">👥 Все пользователи</a>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">← На главную</a>
+    </div>
+</div>
+
+<!-- Поиск и фильтры -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-search me-2"></i>Поиск и фильтрация
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Поиск по имени или email:</label>
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Введите имя или email...">
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Фильтр по статусу:</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">Все статусы</option>
+                        <option value="active">Активные</option>
+                        <option value="inactive">Неактивные</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted" id="searchResultsText">
+                    Найдено администраторов: <strong>{{ admins|length }}</strong>
+                </span>
+            </div>
+            <div>
+                <button class="btn btn-outline-secondary btn-sm" id="resetFilters">
+                    <i class="fas fa-refresh me-1"></i>Сбросить фильтры
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-crown me-2"></i>Создатели и администраторы системы
+        </h5>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+            <label class="form-check-label text-dark" for="autoRefresh">Автообновление</label>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if admins %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="adminsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>
+                            Имя пользователя
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="username"></i>
+                        </th>
+                        <th>Email</th>
+                        <th>
+                            Город
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="city"></i>
+                        </th>
+                        <th>
+                            Роль
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="role"></i>
+                        </th>
+                        <th>
+                            Статус
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="status"></i>
+                        </th>
+                        <th>
+                            Дата регистрации
+                            <i class="fas fa-sort ms-1 cursor-pointer" data-sort="date"></i>
+                        </th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="adminsTableBody">
+                    {% for admin in admins %}
+                    <tr class="admin-row"
+                        data-username="{{ admin.username.lower() }}"
+                        data-email="{{ admin.email.lower() }}"
+                        data-city="{{ admin.city }}"
+                        data-role="{{ admin.role }}"
+                        data-status="{{ 'active' if admin.is_active else 'inactive' }}">
+                        <td>{{ admin.id }}</td>
+                        <td>
+                            <a href="{{ url_for('view_profile', user_id=admin.id) }}" class="text-decoration-none">
+                                <strong class="admin-username">{{ admin.username }}</strong>
+                                {% if admin.id == session.user_id %}<strong>(Вы)</strong>{% endif %}
+                            </a>
+                        </td>
+                        <td class="admin-email">{{ admin.email }}</td>
+                        <td class="admin-city">{{ admin.city }}</td>
+                        <td class="admin-role">
+                            <span class="badge bg-{{ 'danger' if admin.role == 'creator' else 'warning' }}">
+                                {% if admin.role == 'creator' %}💎 Создатель
+                                {% else %}⚡ Администратор
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="admin-status">
+                            <span class="badge bg-{{ 'success' if admin.is_active else 'danger' }}">
+                                {{ 'Активен' if admin.is_active else 'Неактивен' }}
+                            </span>
+                        </td>
+                        <td class="admin-date">{{ admin.created_date[:10] }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('view_user_actions', user_id=admin.id) }}"
+                                   class="btn btn-info">
+                                    📊 Действия
+                                </a>
+                                {% if admin.id != session.user_id and admin.role != 'creator' %}
+                                <a href="{{ url_for('toggle_user_role', user_id=admin.id) }}"
+                                   class="btn btn-warning"
+                                   onclick="return confirm('Вы уверены, что хотите снять права администратора с {{ admin.username }}?')">
+                                    👥 Сделать пользователем
+                                </a>
+                                <a href="{{ url_for('toggle_user_status', user_id=admin.id) }}"
+                                   class="btn btn-{{ 'danger' if admin.is_active else 'success' }}"
+                                   onclick="return confirm('Вы уверены, что хотите {{ 'деактивировать' if admin.is_active else 'активировать' }} администратора {{ admin.username }}?')">
+                                    {{ '🚫 Деактивировать' if admin.is_active else '✅ Активировать' }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">Системная роль</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div id="noResults" class="text-center py-4 d-none">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h5>Администраторы не найдены</h5>
+            <p class="text-muted">Попробуйте изменить параметры поиска</p>
+        </div>
+        {% else %}
+        <p class="text-muted">Нет администраторов в системе</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="card mt-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">📈 Статистика администраторов</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h4 id="totalAdmins">{{ admins|length }}</h4>
+                        <p class="mb-0">Всего админов</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h4 id="creatorAdmins">{{ admins|selectattr('role', 'equalto', 'creator')|list|length }}</h4>
+                        <p class="mb-0">Создателей</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h4 id="adminAdmins">{{ admins|selectattr('role', 'equalto', 'admin')|list|length }}</h4>
+                        <p class="mb-0">Администраторов</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h4 id="activeAdmins">{{ admins|selectattr('is_active', 'equalto', 1)|list|length }}</h4>
+                        <p class="mb-0">Активных</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Поиск и фильтрация администраторов
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const clearSearch = document.getElementById('clearSearch');
+    const resetFilters = document.getElementById('resetFilters');
+    const adminsTableBody = document.getElementById('adminsTableBody');
+    const noResults = document.getElementById('noResults');
+    const searchResultsText = document.getElementById('searchResultsText');
+    const autoRefresh = document.getElementById('autoRefresh');
+
+    let currentSort = { column: 'username', direction: 'asc' };
+
+    // Функция фильтрации администраторов
+    function filterAdmins() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const statusValue = statusFilter.value;
+
+        let visibleCount = 0;
+        let creatorCount = 0;
+        let adminCount = 0;
+        let activeCount = 0;
+
+        document.querySelectorAll('.admin-row').forEach(row => {
+            const username = row.getAttribute('data-username');
+            const email = row.getAttribute('data-email');
+            const adminRole = row.getAttribute('data-role');
+            const adminStatus = row.getAttribute('data-status');
+
+            const matchesSearch = searchTerm === '' ||
+                                username.includes(searchTerm) ||
+                                email.includes(searchTerm);
+            const matchesStatus = statusValue === '' || adminStatus === statusValue;
+
+            if (matchesSearch && matchesStatus) {
+                row.style.display = '';
+                visibleCount++;
+
+                // Собираем статистику
+                if (adminRole === 'creator') creatorCount++;
+                if (adminRole === 'admin') adminCount++;
+                if (adminStatus === 'active') activeCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Обновляем тексты результатов
+        searchResultsText.innerHTML = `Найдено администраторов: <strong>${visibleCount}</strong>`;
+
+        // Обновляем статистику
+        document.getElementById('totalAdmins').textContent = visibleCount;
+        document.getElementById('creatorAdmins').textContent = creatorCount;
+        document.getElementById('adminAdmins').textContent = adminCount;
+        document.getElementById('activeAdmins').textContent = activeCount;
+
+        // Показываем/скрываем сообщение "нет результатов"
+        if (visibleCount === 0) {
+            noResults.classList.remove('d-none');
+            adminsTableBody.style.display = 'none';
+        } else {
+            noResults.classList.add('d-none');
+            adminsTableBody.style.display = '';
+        }
+    }
+
+    // Сортировка таблицы
+    function sortTable(column, direction) {
+        const rows = Array.from(document.querySelectorAll('.admin-row:not([style*="display: none"])'));
+
+        rows.sort((a, b) => {
+            let aValue, bValue;
+
+            switch(column) {
+                case 'username':
+                    aValue = a.querySelector('.admin-username').textContent.toLowerCase();
+                    bValue = b.querySelector('.admin-username').textContent.toLowerCase();
+                    break;
+                case 'city':
+                    aValue = a.querySelector('.admin-city').textContent.toLowerCase();
+                    bValue = b.querySelector('.admin-city').textContent.toLowerCase();
+                    break;
+                case 'role':
+                    aValue = a.querySelector('.admin-role').textContent.toLowerCase();
+                    bValue = b.querySelector('.admin-role').textContent.toLowerCase();
+                    break;
+                case 'status':
+                    aValue = a.querySelector('.admin-status').textContent.toLowerCase();
+                    bValue = b.querySelector('.admin-status').textContent.toLowerCase();
+                    break;
+                case 'date':
+                    aValue = new Date(a.querySelector('.admin-date').textContent);
+                    bValue = new Date(b.querySelector('.admin-date').textContent);
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (direction === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+
+        // Перестраиваем таблицу
+        const tbody = document.getElementById('adminsTableBody');
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Обработчики событий
+    searchInput.addEventListener('input', function() {
+        if (autoRefresh.checked) {
+            filterAdmins();
+        }
+    });
+
+    statusFilter.addEventListener('change', function() {
+        if (autoRefresh.checked) {
+            filterAdmins();
+        }
+    });
+
+    clearSearch.addEventListener('click', function() {
+        searchInput.value = '';
+        if (autoRefresh.checked) {
+            filterAdmins();
+        }
+    });
+
+    resetFilters.addEventListener('click', function() {
+        searchInput.value = '';
+        statusFilter.value = '';
+        filterAdmins();
+    });
+
+    // Обработчики сортировки
+    document.querySelectorAll('[data-sort]').forEach(icon => {
+        icon.addEventListener('click', function() {
+            const column = this.getAttribute('data-sort');
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            sortTable(currentSort.column, currentSort.direction);
+
+            // Обновляем иконки сортировки
+            document.querySelectorAll('[data-sort]').forEach(i => {
+                i.className = 'fas fa-sort ms-1 cursor-pointer';
+            });
+            this.className = `fas fa-sort-${currentSort.direction === 'asc' ? 'up' : 'down'} ms-1 cursor-pointer`;
+        });
+    });
+
+    // Инициализация
+    filterAdmins();
+});
+</script>
+
+<style>
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.admin-row:hover {
+    background-color: #f8f9fa !important;
+}
+
+.input-group .btn {
+    border-left: none;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    position: relative;
+}
+
+.table th i {
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.table th i:hover {
+    opacity: 1;
+}
+
+#noResults {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}
